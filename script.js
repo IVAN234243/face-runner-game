@@ -4,7 +4,7 @@ const scoreSpan = document.getElementById('score');
 const highScoreSpan = document.getElementById('highScore');
 const startBtn = document.getElementById('startBtn');
 const restartBtn = document.getElementById('restartBtn');
-const soundToggleBtn = document.getElementById('soundToggle'); // новая кнопка
+const soundToggleBtn = document.getElementById('soundToggle');
 
 canvas.width = 400;
 canvas.height = 600;
@@ -17,12 +17,16 @@ highScoreSpan.textContent = highScore;
 let frameId;
 let frames = 0;
 
-// Музыка
-let bgMusic = new Audio();
-bgMusic.src = 'assets/background.mp3'; // положите файл в assets/
+// Музыка фоновая
+let bgMusic = new Audio('assets/background.mp3');
 bgMusic.loop = true;
 bgMusic.volume = 0.5;
-let isMusicMuted = false; // false = музыка играет (при старте)
+let isMusicMuted = false;
+
+// Звук проигрыша
+let gameoverSound = new Audio('assets/gameover.mp3');
+gameoverSound.loop = false;
+gameoverSound.volume = 0.7;
 
 // Игрок (ваша голова)
 const player = {
@@ -34,7 +38,7 @@ const player = {
     speed: 6,
     image: new Image()
 };
-player.image.src = 'assets/head.png'; // фото должно лежать в assets/
+player.image.src = 'assets/head.jpg';
 
 // Препятствия
 let obstacles = [];
@@ -117,14 +121,12 @@ canvas.addEventListener('mouseleave', () => {
 // Кнопка звука
 soundToggleBtn.addEventListener('click', () => {
     if (isMusicMuted) {
-        // Включаем звук
         if (gameActive) {
             bgMusic.play().catch(e => console.log('Не удалось запустить музыку:', e));
         }
         soundToggleBtn.textContent = '🔊';
         soundToggleBtn.classList.remove('muted');
     } else {
-        // Выключаем звук
         bgMusic.pause();
         soundToggleBtn.textContent = '🔈';
         soundToggleBtn.classList.add('muted');
@@ -136,6 +138,10 @@ startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', restartGame);
 
 function startGame() {
+    // Останавливаем возможные звуки проигрыша
+    gameoverSound.pause();
+    gameoverSound.currentTime = 0;
+
     gameActive = true;
     score = 0;
     obstacles = [];
@@ -154,9 +160,10 @@ function startGame() {
 
 function restartGame() {
     cancelAnimationFrame(frameId);
-    // сбрасываем музыку, если играла
     bgMusic.pause();
     bgMusic.currentTime = 0;
+    gameoverSound.pause();
+    gameoverSound.currentTime = 0;
     startGame();
 }
 
@@ -170,7 +177,6 @@ function gameLoop() {
 function update() {
     frames++;
 
-    // Движение игрока
     if (leftPressed) player.x -= player.speed;
     if (rightPressed) player.x += player.speed;
     if (player.x < 0) player.x = 0;
@@ -188,7 +194,6 @@ function update() {
         });
     }
 
-    // Обновление препятствий и проверка столкновений
     for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.y += FALL_SPEED;
@@ -206,22 +211,24 @@ function update() {
             h: obs.height * OBSTACLE_HITBOX_SCALE
         };
 
-        // Проверка пересечения
+        // Проверка столкновения
         if (!(playerHitbox.x + playerHitbox.w < obsHitbox.x ||
               playerHitbox.x > obsHitbox.x + obsHitbox.w ||
               playerHitbox.y + playerHitbox.h < obsHitbox.y ||
               playerHitbox.y > obsHitbox.y + obsHitbox.h)) {
             gameActive = false;
-            // Останавливаем музыку при Game Over
             bgMusic.pause();
             bgMusic.currentTime = 0;
+            if (!isMusicMuted) {
+                gameoverSound.currentTime = 0;
+                gameoverSound.play().catch(e => console.log('Ошибка gameover sound:', e));
+            }
             cancelAnimationFrame(frameId);
             drawGameOver();
             updateHighScore();
             return;
         }
 
-        // Удаляем упавшие объекты и увеличиваем счёт
         if (obs.y > canvas.height) {
             obstacles.splice(i, 1);
             score++;
@@ -233,7 +240,7 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Рисуем игрока (с защитой от битого изображения)
+    // Игрок
     if (player.image.complete && player.image.naturalHeight !== 0) {
         ctx.save();
         ctx.beginPath();
@@ -249,7 +256,7 @@ function draw() {
         ctx.fill();
     }
 
-    // Рисуем препятствия (эмодзи)
+    // Препятствия
     ctx.font = `${OBSTACLE_SIZE}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
