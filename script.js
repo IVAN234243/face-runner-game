@@ -28,9 +28,9 @@ let gameoverSound = new Audio('assets/gameover.mp3');
 gameoverSound.loop = false;
 gameoverSound.volume = 0.7;
 
-// Звук сбора монетки/автомата
+// Звук сбора монетки
 let coinSound = new Audio('assets/coin.mp3');
-coinSound.volume = 1.0;
+coinSound.volume = 0.6;
 
 // Игрок (ваша голова)
 const player = {
@@ -44,28 +44,57 @@ const player = {
 };
 player.image.src = 'assets/head.png';
 
-// Препятствия (опасные)
-let obstacles = [];
-const obstacleTypes = [
-    { emoji: '💩', name: 'poop' },
-    { emoji: '🧻', name: 'toilet' },
-    { emoji: '🗑️', name: 'trash' },
-    { emoji: '🦠', name: 'virus' }
-];
-const OBSTACLE_SIZE = 50;
-const OBSTACLE_HITBOX_SCALE = 0.8;
-const FALL_SPEED = 3;
-const OBSTACLE_SPAWN_RATE = 45; // реже, чем раньше, чтобы освободить место для монеток
+// Вспомогательная функция загрузки изображений
+function loadImage(src) {
+    const img = new Image();
+    img.src = src;
+    return img;
+}
 
-// Собираемые предметы (полезные)
-let collectibles = [];
-const collectibleTypes = [
-    { emoji: '🪙', name: 'coin', points: 10 },
-    { emoji: '🔫', name: 'ak47', points: 20 }
+// Препятствия (враги)
+const obstacleTypes = [
+    { 
+        name: 'poop', 
+        emoji: '💩', 
+        png: loadImage('assets/poop.png')      // остаётся PNG
+    },
+    { 
+        name: 'toilet', 
+        emoji: '🧻', 
+        png: loadImage('assets/toilet.png')    // остаётся PNG
+    },
+    { 
+        name: 'trash', 
+        emoji: '🚜',                           // эмодзи трактора
+        png: null                              // без PNG
+    },
+    { 
+        name: 'virus', 
+        emoji: '🦠',                           // эмодзи вируса
+        png: null                              // без PNG
+    }
 ];
-const COLLECTIBLE_SIZE = 40;
+
+// Собираемые предметы (только монетка)
+const collectibleTypes = [
+    { 
+        name: 'coin', 
+        emoji: '🪙', 
+        png: loadImage('assets/coin.png'),      // PNG монетки
+        points: 10 
+    }
+];
+
+const OBSTACLE_SIZE = 50;
+const COLLECTIBLE_SIZE = 45;
+const OBSTACLE_HITBOX_SCALE = 0.8;
 const COLLECTIBLE_HITBOX_SCALE = 0.8;
-const COLLECTIBLE_SPAWN_RATE = 30; // появляются чуть чаще
+const FALL_SPEED = 3;
+const OBSTACLE_SPAWN_RATE = 45;
+const COLLECTIBLE_SPAWN_RATE = 30; // частота появления монеток
+
+let obstacles = [];
+let collectibles = [];
 
 // Управление
 let leftPressed = false;
@@ -213,9 +242,9 @@ function update() {
         });
     }
 
-    // Спавн собираемых предметов
+    // Спавн собираемых предметов (монеток)
     if (frames % COLLECTIBLE_SPAWN_RATE === 0) {
-        const type = collectibleTypes[Math.floor(Math.random() * collectibleTypes.length)];
+        const type = collectibleTypes[0]; // единственный тип
         collectibles.push({
             x: Math.random() * (canvas.width - COLLECTIBLE_SIZE),
             y: -COLLECTIBLE_SIZE,
@@ -266,7 +295,7 @@ function update() {
         }
     }
 
-    // Обработка собираемых предметов
+    // Обработка собираемых предметов (монеток)
     for (let i = collectibles.length - 1; i >= 0; i--) {
         const col = collectibles[i];
         col.y += FALL_SPEED;
@@ -284,12 +313,11 @@ function update() {
             h: col.height * COLLECTIBLE_HITBOX_SCALE
         };
 
-        // Проверка сбора
         if (!(playerHitbox.x + playerHitbox.w < colHitbox.x ||
               playerHitbox.x > colHitbox.x + colHitbox.w ||
               playerHitbox.y + playerHitbox.h < colHitbox.y ||
               playerHitbox.y > colHitbox.y + colHitbox.h)) {
-            // Собираем: увеличиваем счёт, проигрываем звук, удаляем предмет
+            // Собираем монетку
             score += col.points;
             scoreSpan.textContent = score;
             if (!isMusicMuted) {
@@ -300,7 +328,6 @@ function update() {
             continue;
         }
 
-        // Удаляем, если упало вниз (не собрали)
         if (col.y > canvas.height) {
             collectibles.splice(i, 1);
         }
@@ -327,17 +354,29 @@ function draw() {
     }
 
     // Рисуем препятствия
-    ctx.font = `${OBSTACLE_SIZE}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
     obstacles.forEach(obs => {
-        ctx.fillText(obs.type.emoji, obs.x + obs.width/2, obs.y + obs.height/2);
+        if (obs.type.png && obs.type.png.complete && obs.type.png.naturalHeight !== 0) {
+            // Если есть PNG и он загружен
+            ctx.drawImage(obs.type.png, obs.x, obs.y, obs.width, obs.height);
+        } else {
+            // Иначе рисуем эмодзи
+            ctx.font = `${obs.width}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(obs.type.emoji, obs.x + obs.width/2, obs.y + obs.height/2);
+        }
     });
 
-    // Рисуем собираемые предметы
-    ctx.font = `${COLLECTIBLE_SIZE}px Arial`;
+    // Рисуем собираемые предметы (монетки)
     collectibles.forEach(col => {
-        ctx.fillText(col.type.emoji, col.x + col.width/2, col.y + col.height/2);
+        if (col.type.png && col.type.png.complete && col.type.png.naturalHeight !== 0) {
+            ctx.drawImage(col.type.png, col.x, col.y, col.width, col.height);
+        } else {
+            ctx.font = `${col.width}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(col.type.emoji, col.x + col.width/2, col.y + col.height/2);
+        }
     });
 }
 
