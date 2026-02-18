@@ -34,7 +34,7 @@ const player = {
     speed: 6,
     image: new Image()
 };
-player.image.src = 'assets/head.jpg'; // фото должно лежать в assets/
+player.image.src = 'assets/head.png'; // фото должно лежать в assets/
 
 // Препятствия
 let obstacles = [];
