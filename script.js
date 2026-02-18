@@ -38,7 +38,7 @@ const player = {
     speed: 6,
     image: new Image()
 };
-player.image.src = 'assets/head.jpg';
+player.image.src = 'assets/head.png';
 
 // Препятствия
 let obstacles = [];
