@@ -31,6 +31,31 @@ body {
     margin-bottom: 15px;
     text-shadow: 2px 2px 0 #0f3460;
 }
+.sound-control {
+    display: flex;
+    justify-content: flex-end;
+    margin: 5px 0;
+}
+.sound-btn {
+    background: #0f3460;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 5px 0 #070b1a;
+    transition: 0.05s linear;
+}
+.sound-btn:active {
+    transform: translateY(5px);
+    box-shadow: 0 2px 0 #070b1a;
+}
+.sound-btn.muted {
+    opacity: 0.6;
+    background: #555;
+}
 
 .score, .high-score {
     background: #0f3460;
