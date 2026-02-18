@@ -1,0 +1,84 @@
+* {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #1a1a2e;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Arial', sans-serif;
+}
+
+.game-container {
+    background: #16213e;
+    border-radius: 30px;
+    padding: 20px;
+    box-shadow: 0 20px 30px rgba(0,0,0,0.5);
+    width: min(400px, 95vw);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    color: #fff;
+    font-size: 1.3rem;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 0 #0f3460;
+}
+
+.score, .high-score {
+    background: #0f3460;
+    padding: 10px 20px;
+    border-radius: 40px;
+    box-shadow: inset 0 -3px 0 #070b1a;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 400 / 600;
+    background: linear-gradient(180deg, #87CEEB 0%, #98D8E8 30%, #C9E4C5 70%, #8FBC8F 100%);
+    border-radius: 30px;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+    touch-action: none; /* предотвращаем прокрутку при касаниях */
+    cursor: pointer;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+    justify-content: center;
+}
+
+button {
+    flex: 1;
+    padding: 15px;
+    border: none;
+    border-radius: 50px;
+    background: #e94560;
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 7px 0 #a01d3a;
+    transition: 0.05s linear;
+    touch-action: manipulation;
+}
+
+button:active {
+    transform: translateY(5px);
+    box-shadow: 0 2px 0 #a01d3a;
+}
+
+button:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
