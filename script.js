@@ -26,7 +26,11 @@ let isMusicMuted = false;
 // Звук проигрыша
 let gameoverSound = new Audio('assets/gameover.mp3');
 gameoverSound.loop = false;
-gameoverSound.volume = 1.0;
+gameoverSound.volume = 0.7;
+
+// Звук сбора монетки/автомата
+let coinSound = new Audio('assets/coin.mp3');
+coinSound.volume = 1.0;
 
 // Игрок (ваша голова)
 const player = {
@@ -40,7 +44,7 @@ const player = {
 };
 player.image.src = 'assets/head.png';
 
-// Препятствия
+// Препятствия (опасные)
 let obstacles = [];
 const obstacleTypes = [
     { emoji: '💩', name: 'poop' },
@@ -51,7 +55,17 @@ const obstacleTypes = [
 const OBSTACLE_SIZE = 50;
 const OBSTACLE_HITBOX_SCALE = 0.8;
 const FALL_SPEED = 3;
-const SPAWN_RATE = 35;
+const OBSTACLE_SPAWN_RATE = 45; // реже, чем раньше, чтобы освободить место для монеток
+
+// Собираемые предметы (полезные)
+let collectibles = [];
+const collectibleTypes = [
+    { emoji: '🪙', name: 'coin', points: 10 },
+    { emoji: '🔫', name: 'ak47', points: 20 }
+];
+const COLLECTIBLE_SIZE = 40;
+const COLLECTIBLE_HITBOX_SCALE = 0.8;
+const COLLECTIBLE_SPAWN_RATE = 30; // появляются чуть чаще
 
 // Управление
 let leftPressed = false;
@@ -138,19 +152,21 @@ startBtn.addEventListener('click', startGame);
 restartBtn.addEventListener('click', restartGame);
 
 function startGame() {
-    // Останавливаем возможные звуки проигрыша
     gameoverSound.pause();
     gameoverSound.currentTime = 0;
+    coinSound.pause();
+    coinSound.currentTime = 0;
 
     gameActive = true;
     score = 0;
     obstacles = [];
+    collectibles = [];
     player.x = canvas.width / 2 - player.width / 2;
     frames = 0;
     startBtn.style.display = 'none';
     restartBtn.style.display = 'inline-block';
+    scoreSpan.textContent = score;
 
-    // Запускаем музыку, если не muted
     if (!isMusicMuted) {
         bgMusic.play().catch(e => console.log('Автовоспроизведение заблокировано:', e));
     }
@@ -164,6 +180,8 @@ function restartGame() {
     bgMusic.currentTime = 0;
     gameoverSound.pause();
     gameoverSound.currentTime = 0;
+    coinSound.pause();
+    coinSound.currentTime = 0;
     startGame();
 }
 
@@ -177,13 +195,14 @@ function gameLoop() {
 function update() {
     frames++;
 
+    // Движение игрока
     if (leftPressed) player.x -= player.speed;
     if (rightPressed) player.x += player.speed;
     if (player.x < 0) player.x = 0;
     if (player.x + player.width > canvas.width) player.x = canvas.width - player.width;
 
     // Спавн препятствий
-    if (frames % SPAWN_RATE === 0) {
+    if (frames % OBSTACLE_SPAWN_RATE === 0) {
         const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
         obstacles.push({
             x: Math.random() * (canvas.width - OBSTACLE_SIZE),
@@ -194,6 +213,20 @@ function update() {
         });
     }
 
+    // Спавн собираемых предметов
+    if (frames % COLLECTIBLE_SPAWN_RATE === 0) {
+        const type = collectibleTypes[Math.floor(Math.random() * collectibleTypes.length)];
+        collectibles.push({
+            x: Math.random() * (canvas.width - COLLECTIBLE_SIZE),
+            y: -COLLECTIBLE_SIZE,
+            width: COLLECTIBLE_SIZE,
+            height: COLLECTIBLE_SIZE,
+            type: type,
+            points: type.points
+        });
+    }
+
+    // Обработка препятствий (опасных)
     for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.y += FALL_SPEED;
@@ -211,7 +244,6 @@ function update() {
             h: obs.height * OBSTACLE_HITBOX_SCALE
         };
 
-        // Проверка столкновения
         if (!(playerHitbox.x + playerHitbox.w < obsHitbox.x ||
               playerHitbox.x > obsHitbox.x + obsHitbox.w ||
               playerHitbox.y + playerHitbox.h < obsHitbox.y ||
@@ -231,8 +263,46 @@ function update() {
 
         if (obs.y > canvas.height) {
             obstacles.splice(i, 1);
-            score++;
+        }
+    }
+
+    // Обработка собираемых предметов
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const col = collectibles[i];
+        col.y += FALL_SPEED;
+
+        const playerHitbox = {
+            x: player.x + player.width * (1 - player.hitboxScale) / 2,
+            y: player.y + player.height * (1 - player.hitboxScale) / 2,
+            w: player.width * player.hitboxScale,
+            h: player.height * player.hitboxScale
+        };
+        const colHitbox = {
+            x: col.x + col.width * (1 - COLLECTIBLE_HITBOX_SCALE) / 2,
+            y: col.y + col.height * (1 - COLLECTIBLE_HITBOX_SCALE) / 2,
+            w: col.width * COLLECTIBLE_HITBOX_SCALE,
+            h: col.height * COLLECTIBLE_HITBOX_SCALE
+        };
+
+        // Проверка сбора
+        if (!(playerHitbox.x + playerHitbox.w < colHitbox.x ||
+              playerHitbox.x > colHitbox.x + colHitbox.w ||
+              playerHitbox.y + playerHitbox.h < colHitbox.y ||
+              playerHitbox.y > colHitbox.y + colHitbox.h)) {
+            // Собираем: увеличиваем счёт, проигрываем звук, удаляем предмет
+            score += col.points;
             scoreSpan.textContent = score;
+            if (!isMusicMuted) {
+                coinSound.currentTime = 0;
+                coinSound.play().catch(e => console.log('Ошибка coin sound:', e));
+            }
+            collectibles.splice(i, 1);
+            continue;
+        }
+
+        // Удаляем, если упало вниз (не собрали)
+        if (col.y > canvas.height) {
+            collectibles.splice(i, 1);
         }
     }
 }
@@ -240,7 +310,7 @@ function update() {
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Игрок
+    // Рисуем игрока
     if (player.image.complete && player.image.naturalHeight !== 0) {
         ctx.save();
         ctx.beginPath();
@@ -256,12 +326,18 @@ function draw() {
         ctx.fill();
     }
 
-    // Препятствия
+    // Рисуем препятствия
     ctx.font = `${OBSTACLE_SIZE}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     obstacles.forEach(obs => {
         ctx.fillText(obs.type.emoji, obs.x + obs.width/2, obs.y + obs.height/2);
+    });
+
+    // Рисуем собираемые предметы
+    ctx.font = `${COLLECTIBLE_SIZE}px Arial`;
+    collectibles.forEach(col => {
+        ctx.fillText(col.type.emoji, col.x + col.width/2, col.y + col.height/2);
     });
 }
 
