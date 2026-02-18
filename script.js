@@ -28,7 +28,7 @@ let gameoverSound = new Audio('assets/gameover.mp3');
 gameoverSound.loop = false;
 gameoverSound.volume = 0.7;
 
-// Звук сбора монетки
+// Звук сбора (для монетки)
 let coinSound = new Audio('assets/coin.mp3');
 coinSound.volume = 0.6;
 
@@ -44,7 +44,7 @@ const player = {
 };
 player.image.src = 'assets/head.png';
 
-// Вспомогательная функция загрузки изображений
+// Загрузка изображений
 function loadImage(src) {
     const img = new Image();
     img.src = src;
@@ -56,22 +56,22 @@ const obstacleTypes = [
     { 
         name: 'poop', 
         emoji: '💩', 
-        png: loadImage('assets/poop.png')      // остаётся PNG
+        png: loadImage('assets/poop.png')
     },
     { 
         name: 'toilet', 
         emoji: '🧻', 
-        png: loadImage('assets/toilet.png')    // остаётся PNG
+        png: loadImage('assets/toilet.png')
     },
     { 
         name: 'trash', 
-        emoji: '🚜',                           // эмодзи трактора
-        png: null                              // без PNG
+        emoji: '🚜',   // красный трактор
+        png: null
     },
     { 
         name: 'virus', 
-        emoji: '🦠',                           // эмодзи вируса
-        png: null                              // без PNG
+        emoji: '🦠',   // вирус
+        png: null
     }
 ];
 
@@ -80,7 +80,7 @@ const collectibleTypes = [
     { 
         name: 'coin', 
         emoji: '🪙', 
-        png: loadImage('assets/coin.png'),      // PNG монетки
+        png: loadImage('assets/coin.png'), 
         points: 10 
     }
 ];
@@ -91,7 +91,9 @@ const OBSTACLE_HITBOX_SCALE = 0.8;
 const COLLECTIBLE_HITBOX_SCALE = 0.8;
 const FALL_SPEED = 3;
 const OBSTACLE_SPAWN_RATE = 45;
-const COLLECTIBLE_SPAWN_RATE = 30; // частота появления монеток
+
+// Увеличиваем интервал спавна монеток в 3 раза (было 30, стало 90)
+const COLLECTIBLE_SPAWN_RATE = 90;  // теперь монетки появляются реже
 
 let obstacles = [];
 let collectibles = [];
@@ -221,6 +223,14 @@ function gameLoop() {
     frameId = requestAnimationFrame(gameLoop);
 }
 
+// Функция проверки пересечения двух прямоугольников (с учетом хитбоксов)
+function rectCollide(r1, r2) {
+    return !(r2.x >= r1.x + r1.w ||
+             r2.x + r2.w <= r1.x ||
+             r2.y >= r1.y + r1.h ||
+             r2.y + r2.h <= r1.y);
+}
+
 function update() {
     frames++;
 
@@ -242,17 +252,47 @@ function update() {
         });
     }
 
-    // Спавн собираемых предметов (монеток)
+    // Спавн собираемых предметов (монеток) - с проверкой наложения на препятствия
     if (frames % COLLECTIBLE_SPAWN_RATE === 0) {
-        const type = collectibleTypes[0]; // единственный тип
-        collectibles.push({
-            x: Math.random() * (canvas.width - COLLECTIBLE_SIZE),
-            y: -COLLECTIBLE_SIZE,
-            width: COLLECTIBLE_SIZE,
-            height: COLLECTIBLE_SIZE,
-            type: type,
-            points: type.points
-        });
+        const type = collectibleTypes[0];
+        // Попробуем найти позицию, где монетка не пересекается ни с одним препятствием
+        let attempts = 0;
+        const maxAttempts = 20; // ограничим попытки, чтобы не зависнуть
+        let placed = false;
+        let newX, newY;
+        
+        while (!placed && attempts < maxAttempts) {
+            newX = Math.random() * (canvas.width - COLLECTIBLE_SIZE);
+            newY = -COLLECTIBLE_SIZE; // появляется сверху
+            // Проверяем пересечение с каждым препятствием
+            let collides = false;
+            for (let obs of obstacles) {
+                // Для простоты используем полные габариты (без учета хитбоксов, т.к. они меньше)
+                if (!(newX + COLLECTIBLE_SIZE <= obs.x ||
+                      newX >= obs.x + obs.width ||
+                      newY + COLLECTIBLE_SIZE <= obs.y ||
+                      newY >= obs.y + obs.height)) {
+                    collides = true;
+                    break;
+                }
+            }
+            if (!collides) {
+                placed = true;
+            }
+            attempts++;
+        }
+        
+        if (placed) {
+            collectibles.push({
+                x: newX,
+                y: newY,
+                width: COLLECTIBLE_SIZE,
+                height: COLLECTIBLE_SIZE,
+                type: type,
+                points: type.points
+            });
+        }
+        // Если не удалось разместить без наложения, просто пропускаем спавн этой монетки
     }
 
     // Обработка препятствий (опасных)
@@ -273,10 +313,7 @@ function update() {
             h: obs.height * OBSTACLE_HITBOX_SCALE
         };
 
-        if (!(playerHitbox.x + playerHitbox.w < obsHitbox.x ||
-              playerHitbox.x > obsHitbox.x + obsHitbox.w ||
-              playerHitbox.y + playerHitbox.h < obsHitbox.y ||
-              playerHitbox.y > obsHitbox.y + obsHitbox.h)) {
+        if (rectCollide(playerHitbox, obsHitbox)) {
             gameActive = false;
             bgMusic.pause();
             bgMusic.currentTime = 0;
@@ -313,10 +350,7 @@ function update() {
             h: col.height * COLLECTIBLE_HITBOX_SCALE
         };
 
-        if (!(playerHitbox.x + playerHitbox.w < colHitbox.x ||
-              playerHitbox.x > colHitbox.x + colHitbox.w ||
-              playerHitbox.y + playerHitbox.h < colHitbox.y ||
-              playerHitbox.y > colHitbox.y + colHitbox.h)) {
+        if (rectCollide(playerHitbox, colHitbox)) {
             // Собираем монетку
             score += col.points;
             scoreSpan.textContent = score;
@@ -356,10 +390,8 @@ function draw() {
     // Рисуем препятствия
     obstacles.forEach(obs => {
         if (obs.type.png && obs.type.png.complete && obs.type.png.naturalHeight !== 0) {
-            // Если есть PNG и он загружен
             ctx.drawImage(obs.type.png, obs.x, obs.y, obs.width, obs.height);
         } else {
-            // Иначе рисуем эмодзи
             ctx.font = `${obs.width}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -367,7 +399,7 @@ function draw() {
         }
     });
 
-    // Рисуем собираемые предметы (монетки)
+    // Рисуем монетки
     collectibles.forEach(col => {
         if (col.type.png && col.type.png.complete && col.type.png.naturalHeight !== 0) {
             ctx.drawImage(col.type.png, col.x, col.y, col.width, col.height);
