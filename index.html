@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Face Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <div class="score">Счёт: <span id="score">0</span></div>
+            <div class="high-score">Рекорд: <span id="highScore">0</span></div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div class="controls">
+            <button id="startBtn">Начать игру</button>
+            <button id="restartBtn" style="display: none;">Ещё раз</button>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
