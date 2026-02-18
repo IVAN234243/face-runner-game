@@ -26,7 +26,7 @@ let isMusicMuted = false;
 // Звук проигрыша
 let gameoverSound = new Audio('assets/gameover.mp3');
 gameoverSound.loop = false;
-gameoverSound.volume = 0.7;
+gameoverSound.volume = 1.0;
 
 // Игрок (ваша голова)
 const player = {
